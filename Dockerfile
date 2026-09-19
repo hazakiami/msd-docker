@@ -7,7 +7,7 @@
 #   2. musl 自带 DNS 解析器，静态链接下不依赖运行时 NSS 共享库
 #      （glibc 静态链接时 getaddrinfo 解析主机名需要 libnss_*.so，是个隐患）
 #   3. apk 源已替换为清华镜像，避免 dl-cdn.alpinelinux.org 在国内过慢
-FROM alpine:3.21 AS builder
+FROM alpine:latest AS builder
 
 ARG MSD_BRANCH=master
 
@@ -73,7 +73,7 @@ RUN set -eux; \
     && ls -l /out/msd
 
 # ============================================================
-FROM alpine:3.21
+FROM alpine:latest
 
 LABEL org.opencontainers.image.title="msd" \
       org.opencontainers.image.description="Multi stream daemon — IPTV multicast to HTTP relay (full version)" \
