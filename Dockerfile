@@ -1,7 +1,7 @@
 # msd — 多阶段构建，静态链接
 # 原版 msd（Multi stream daemon），比 msd_lite 功能更全：
 #   支持频道列表(/channel/)、MPEG2TS 分析器、零拷贝发送、HTTP/TCP 源转发
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:latest AS builder
 
 ARG MSD_BRANCH=master
 
@@ -63,7 +63,7 @@ RUN set -eux; \
     && ls -l /out/msd
 
 # ============================================================
-FROM alpine:3.21
+FROM alpine:latest
 
 LABEL org.opencontainers.image.title="msd" \
       org.opencontainers.image.description="Multi stream daemon — IPTV multicast to HTTP relay (full version)" \
