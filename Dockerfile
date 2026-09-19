@@ -1,14 +1,24 @@
 # msd — 多阶段构建，静态链接
 # 原版 msd（Multi stream daemon），比 msd_lite 功能更全：
 #   支持频道列表(/channel/)、MPEG2TS 分析器、零拷贝发送、HTTP/TCP 源转发
-FROM ubuntu:latest AS builder
+#
+# 构建阶段与运行阶段统一使用 alpine:3.21（musl），好处：
+#   1. 构建/运行同一 libc，且 musl 静态二进制比 glibc 静态二进制小 4 倍左右
+#   2. musl 自带 DNS 解析器，静态链接下不依赖运行时 NSS 共享库
+#      （glibc 静态链接时 getaddrinfo 解析主机名需要 libnss_*.so，是个隐患）
+#   3. apk 源已替换为清华镜像，避免 dl-cdn.alpinelinux.org 在国内过慢
+FROM alpine:3.21 AS builder
 
 ARG MSD_BRANCH=master
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates curl tar gzip \
-        build-essential cmake libc6-dev \
-    && rm -rf /var/lib/apt/lists/*
+# bsd-compat-headers 必须装：musl libc 不提供 <sys/queue.h>（glibc 有），
+# 源码 src/stream_hub.h 依赖它，缺了会报 fatal error: sys/queue.h: No such file or directory
+RUN set -eux; \
+    sed -i 's|dl-cdn.alpinelinux.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories; \
+    grep -q 'mirrors.tuna.tsinghua.edu.cn' /etc/apk/repositories; \
+    apk add --no-cache \
+        build-base cmake bsd-compat-headers \
+        tar gzip curl ca-certificates
 
 WORKDIR /src
 
@@ -63,7 +73,7 @@ RUN set -eux; \
     && ls -l /out/msd
 
 # ============================================================
-FROM alpine:latest
+FROM alpine:3.21
 
 LABEL org.opencontainers.image.title="msd" \
       org.opencontainers.image.description="Multi stream daemon — IPTV multicast to HTTP relay (full version)" \
