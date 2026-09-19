@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  频道列表示例 —— 通过 /channel/<name> 访问
+  该文件被主配置的 <channelList><includeFile> 引入。
+  挂载方式: -v /my/msd_channels.conf:/etc/msd/msd_channels.conf:ro
+-->
+<channel>
+	<name>cctv1.ts</name>
+	<hubProfileName>default</hubProfileName>
+	<sourceList>
+		<source>
+			<type>multicast-udp</type>
+			<sourceProfileName>multicast-udp-default</sourceProfileName>
+			<udp><address>239.0.0.1:1234</address></udp>
+		</source>
+	</sourceList>
+</channel>
+
+<channel>
+	<name>cctv2.ts</name>
+	<hubProfileName>default</hubProfileName>
+	<sourceList>
+		<source>
+			<type>multicast-udp</type>
+			<sourceProfileName>multicast-udp-default</sourceProfileName>
+			<udp><address>239.0.0.2:1234</address></udp>
+		</source>
+	</sourceList>
+</channel>

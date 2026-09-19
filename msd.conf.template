@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  msd 配置模板 —— 由 entrypoint.sh 用环境变量渲染到 /etc/msd/msd.conf
+
+  单位说明：
+    precache / ringBufSize / sndBlockSize 单位 KB（程序内部 *1024）
+    sndBuf / rcvBuf / rcvLoWatermark 单位 字节
+-->
+<msd>
+	<log>
+		<level>__MSD_LOG_LEVEL__</level>
+	</log>
+
+	<threadPool>
+		<threadsCountMax>__MSD_THREADS__</threadsCountMax>
+		<fBindToCPU>no</fBindToCPU>
+	</threadPool>
+
+	<!-- HTTP 服务 -->
+	<HTTP>
+		<skt>
+			<congestionControl>__MSD_CONGESTION__</congestionControl>
+		</skt>
+		<bindList>
+			<bind><address>0.0.0.0:__MSD_PORT__</address></bind>
+		</bindList>
+		<hostnameList>
+			<hostname>*</hostname>
+		</hostnameList>
+	</HTTP>
+
+	<!-- 来自 HTTP 请求参数的客户端限制 -->
+	<limits>
+		<precacheMin>0</precacheMin>
+		<precacheMax>__MSD_RINGBUF__</precacheMax>
+		<sndBlockSizeMin>32</sndBlockSizeMin>
+		<sndBlockSizeMax>512</sndBlockSizeMax>
+	</limits>
+
+	<!-- 流分发配置 -->
+	<hubProfileList>
+		<hubProfile>
+			<name>default</name>
+			<fZeroCopyOnSend>__MSD_ZEROCOPY__</fZeroCopyOnSend>
+			<precache>__MSD_PRECACHE__</precache>
+			<headersList>
+				<header>Pragma: no-cache</header>
+				<header>Content-Type: video/mpeg</header>
+			</headersList>
+			<sourceProfile>
+				<!-- MPEG2-TS 分析器：启用后会按 PID 过滤，丢弃 NIT/SDT/EIT/NULL 及未知 PID。
+				     注意：人工构造的简易测试流（无 PAT/PMT）会被当作未知 PID 丢弃，
+				     此时应设为 no，或改用规范的 TS 流。 -->
+				<MPEG2TS>
+					<fEnable>__MSD_MPEG2TS__</fEnable>
+					<filterPIDList>
+						<PID>reset</PID>
+						<PID>16</PID>     <!-- NIT -->
+						<PID>17</PID>     <!-- SDT -->
+						<PID>18</PID>     <!-- EIT -->
+						<PID>null</PID>   <!-- = 8191 -->
+						<PID>unknown</PID>
+					</filterPIDList>
+				</MPEG2TS>
+				<ringBufSize>__MSD_RINGBUF__</ringBufSize>
+				<ringBufStorePath>shm</ringBufStorePath>
+			</sourceProfile>
+		</hubProfile>
+	</hubProfileList>
+
+	<!-- 源配置模板 -->
+	<sourceProfileList>
+		<sourceProfile>
+			<name>multicast-udp-default</name>
+			<multicast>
+				<!-- 接收组播的网卡名（必须是网卡名，不能写 IP） -->
+				<ifName>__MSD_IFACE__</ifName>
+			</multicast>
+		</sourceProfile>
+		<sourceProfile>
+			<name>tcp-http-default</name>
+			<tcp>
+				<connectTimeout>5</connectTimeout>
+				<reconnectInterval>5</reconnectInterval>
+				<reconnectCount>5</reconnectCount>
+			</tcp>
+			<http>
+				<headersList>
+					<header>Accept: */*</header>
+					<header>User-Agent: NSPlayer/7.10.0.3059</header>
+				</headersList>
+			</http>
+		</sourceProfile>
+	</sourceProfileList>
+
+	<!-- 按 URL 自动代理：
+	     /udp/addr:port  /rtp/addr:port  /http/host:port/path  /channel/name -->
+	<streamProxy>
+		<multicast>
+			<fEnable>__MSD_STREAM_PROXY__</fEnable>
+			<hubProfileName>default</hubProfileName>
+			<sourceProfileName>multicast-udp-default</sourceProfileName>
+		</multicast>
+		<http>
+			<fEnable>__MSD_STREAM_PROXY__</fEnable>
+			<hubProfileName>default</hubProfileName>
+			<sourceProfileName>tcp-http-default</sourceProfileName>
+		</http>
+		<transparent>
+			<fEnable>__MSD_STREAM_PROXY__</fEnable>
+			<hubProfileName>default</hubProfileName>
+			<sourceProfileName>tcp-http-default</sourceProfileName>
+		</transparent>
+	</streamProxy>
+
+	<!-- 预定义频道列表；文件挂载到 /etc/msd/msd_channels.conf
+	     注意：includeFile 的路径是原样 open() 的，不能写 "-/path" 这种前缀，
+	     否则会被当成字面文件名而报 No such file or directory。 -->
+	<channelList>
+		<includeFile>/etc/msd/msd_channels.conf</includeFile>
+	</channelList>
+</msd>
