@@ -1,0 +1,75 @@
+name: Build and Push Docker Image
+
+# 触发时机：推送到 main 分支、打 v* 标签、以及手动触发
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# 同一分支/标签同时只跑一个构建，新提交会取消排队中的旧任务
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Docker Hub 上的镜像名，格式：<用户名>/<仓库名>
+  # 建议把这个值改成你自己的，例如：myuser/myapp
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/myapp
+  # Dockerfile 位于仓库根目录
+  DOCKERFILE_PATH: ./Dockerfile
+
+jobs:
+  build-and-push:
+    name: Build and push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 生成 tag 列表并去掉非法字符（分支名里的 / 等）
+      - name: Prepare image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # 推送到默认分支 -> latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 打 v1.2.3 标签 -> 1.2.3 和 1.2
+            # type=semver,pattern={{version}}
+            # type=semver,pattern={{major}}.{{minor}}
+            # 其他分支 -> 分支名
+            # type=ref,event=branch
+            # 每次提交 -> sha-xxxxxxx，方便回溯
+            # type=sha,prefix=sha-,format=short
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          # 只构建 amd64
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 用 GitHub Actions 缓存加速后续构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 把构建摘要写进 job summary
+          provenance: false
