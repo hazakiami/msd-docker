@@ -17,7 +17,7 @@ concurrency:
 env:
   # Docker Hub 上的镜像名，格式：<用户名>/<仓库名>
   # 建议把这个值改成你自己的，例如：myuser/myapp
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/myapp
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/msd
   # Dockerfile 位于仓库根目录
   DOCKERFILE_PATH: ./Dockerfile
 
@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # 生成 tag 列表并去掉非法字符（分支名里的 / 等）
       - name: Prepare image tags
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -50,16 +50,16 @@ jobs:
             # type=sha,prefix=sha-,format=short
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
